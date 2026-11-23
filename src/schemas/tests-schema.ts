@@ -17,7 +17,11 @@ export const testsSchema: CollectionSchema = {
   ownerField: 'ownerId',
   // String form: a record is public when this column equals 'public'.
   visibilityField: 'visibility',
+  // The slug is the public id in the share link (/t/<slug>). Pages look a
+  // test up by this column so live updates reach them.
+  uniqueOn: ['slug'],
   columns: [
+    { name: 'slug', storage: 'text', interpretation: 'plain', required: true, immutable: true, maxLength: 16 },
     { name: 'title', storage: 'text', interpretation: 'plain', required: true, maxLength: 120 },
     { name: 'sourceUrl', storage: 'text', interpretation: 'plain', default: '', maxLength: 500 },
     { name: 'sourceText', storage: 'text', interpretation: 'plain', default: '', maxLength: 4000 },
