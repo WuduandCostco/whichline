@@ -21,6 +21,15 @@ export const AI_MODEL = 'claude-haiku-5-5'
  */
 export const DRAFT_MAX_TOKENS = 3000
 
+/** Output cap for summarizing voters' reasons. Same reasoning allowance as drafting. */
+export const SUMMARY_MAX_TOKENS = 3000
+
+/** Votes are read from the server in pages of this size when a test is closed. */
+export const VOTE_PAGE_SIZE = 200
+
+/** A test with more votes than this is summarized from its first votes only. */
+export const MAX_VOTES_READ = 2000
+
 /** How much page or description text is sent to the model. */
 export const MAX_SOURCE_CHARS = 6000
 

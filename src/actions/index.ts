@@ -15,15 +15,28 @@ import {
   DAILY_LIMITS,
   DRAFT_MAX_TOKENS,
   MAX_SOURCE_CHARS,
+  MAX_VOTES_READ,
   MIN_SOURCE_CHARS,
+  SUMMARY_MAX_TOKENS,
+  VOTE_PAGE_SIZE,
   type MeteredAction,
 } from '../config'
 import { DRAFT_SYSTEM_PROMPT, buildDraftPrompt, cleanHttpUrl, parseDraftLines } from '../lib/draft'
 import {
+  SUMMARY_SYSTEM_PROMPT,
+  buildReportEmail,
+  buildSummaryPrompt,
+  cleanSummary,
+} from '../lib/report'
+import {
   MAX_SOURCE_TEXT_LENGTH,
   MAX_TITLE_LENGTH,
   MAX_URL_LENGTH,
+  tally,
+  type CloseResult,
   type DraftResult,
+  type TestData,
+  type VoteData,
 } from '../lib/whichline'
 
 /** The parts of the firecrawl/scrape response this app reads. */
@@ -67,6 +80,28 @@ async function spendDailyAllowance(
   const logged = await tools.create('usage', { userId, day, action })
   if (!logged.success) return fail('Could not record this request. Please try again.')
   return null
+}
+
+/**
+ * Every vote for one test, read page by page.
+ *
+ * `tools.query` returns one page (capped at about 30KB) and, when more records
+ * match, a `nextOffset` to continue from. The published TypeScript types do not
+ * list `offset` / `nextOffset` yet, hence the two casts.
+ */
+async function readVotes(tools: ActionTools, testId: string): Promise<VoteData[] | null> {
+  const votes: VoteData[] = []
+  let offset = 0
+  while (votes.length < MAX_VOTES_READ) {
+    const options = { where: { testId }, orderBy: 'createdAt', orderDir: 'asc', limit: VOTE_PAGE_SIZE, offset }
+    const page = await tools.query('votes', options as Parameters<ActionTools['query']>[1])
+    if (!page.success) return null
+    for (const record of page.data.records) votes.push(record.data as unknown as VoteData)
+    const nextOffset = (page.data as { nextOffset?: unknown }).nextOffset
+    if (typeof nextOffset !== 'number' || page.data.records.length === 0) break
+    offset = nextOffset
+  }
+  return votes
 }
 
 export const actions: Record<string, ActionHandler<Env>> = {
@@ -150,6 +185,87 @@ export const actions: Record<string, ActionHandler<Env>> = {
       sourceUrl: url ?? '',
       sourceText: source.slice(0, MAX_SOURCE_TEXT_LENGTH),
     }
+    return { success: true, data: result }
+  },
+
+  /**
+   * Close a test: stop counting new votes, summarize the reasons, and email
+   * the results to the owner. Closing cannot be undone.
+   */
+  closeTest: async ({ userId, params, tools, env }) => {
+    const testId = asText(params.testId)
+    if (testId === '') return fail('Missing test id.')
+
+    const found = await tools.get('tests', testId)
+    if (!found.success) return fail('Test not found.')
+    const test = found.data.record.data as unknown as TestData
+
+    // Actions bypass RBAC, so this comparison is the only thing that stops one
+    // signed-in user from closing someone else's test.
+    if (test.ownerId !== userId) {
+      return fail('Only the person who created this test can close it.')
+    }
+    if (test.status === 'closed') {
+      // Already done. Answer without spending anything or emailing again.
+      const already: CloseResult = { summary: test.summary ?? '', emailed: false }
+      return { success: true, data: already }
+    }
+
+    const overLimit = await spendDailyAllowance(tools, userId, 'close')
+    if (overLimit) return overLimit
+
+    const votes = await readVotes(tools, testId)
+    if (votes === null) return fail('Could not read the votes. Please try again.')
+    const counts = tally(votes.map((data) => ({ data })))
+
+    // The summary is a nice-to-have: if the AI call fails, the test still closes.
+    let summary = ''
+    const prompt = buildSummaryPrompt(test.lines ?? [], counts, votes)
+    if (prompt !== null) {
+      const reply = await tools.integration<ChatResponse>('anthropic/chat-completion', {
+        model: AI_MODEL,
+        max_tokens: SUMMARY_MAX_TOKENS,
+        system: SUMMARY_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      if (reply.success) {
+        summary = cleanSummary(asText(reply.data.content?.find((block) => block.type === 'text')?.text))
+      } else {
+        console.warn('[closeTest] summary failed:', reply.error)
+      }
+    }
+
+    const closed = await tools.update('tests', testId, {
+      status: 'closed',
+      closedAt: Date.now(),
+      summary,
+    })
+    if (!closed.success) return fail('Could not close the test. Please try again.')
+
+    // The address comes from the caller's own profile row, which the platform
+    // fills in from their sign-in. It is never taken from the request, so this
+    // action cannot be used to email anyone else.
+    let emailed = false
+    const profile = await tools.get('users', userId)
+    const email = profile.success ? asText(profile.data.record.data.email) : ''
+    if (email !== '') {
+      const report = buildReportEmail({
+        title: test.title ?? '',
+        lines: test.lines ?? [],
+        counts,
+        summary,
+        link: `https://${env.APP_NAME}.app.space/t/${test.slug}`,
+      })
+      const sent = await tools.integration('email/send', {
+        to: email,
+        subject: report.subject,
+        text: report.text,
+      })
+      emailed = sent.success
+      if (!sent.success) console.warn('[closeTest] email failed:', sent.error)
+    }
+
+    const result: CloseResult = { summary, emailed }
     return { success: true, data: result }
   },
 }

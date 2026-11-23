@@ -125,11 +125,32 @@ export function shuffled<T>(items: readonly T[]): T[] {
 
 export type Tally = Record<LineId, number>
 
-/** Count votes per line. A vote for an unknown line id is ignored. */
-export function tally(votes: readonly { data: VoteData }[]): Tally {
+/**
+ * Count votes per line.
+ *
+ * A vote for an unknown line id is ignored. When the test is closed
+ * (closedAt > 0), votes created after that moment are ignored too: the page
+ * stops offering the ballot, but the collection still accepts rows.
+ */
+export function tally(
+  votes: readonly { data: VoteData; createdAt?: string }[],
+  closedAt = 0,
+): Tally {
   const counts: Tally = { a: 0, b: 0, c: 0 }
   for (const vote of votes) {
-    if (Object.hasOwn(counts, vote.data.lineId)) counts[vote.data.lineId] += 1
+    if (!Object.hasOwn(counts, vote.data.lineId)) continue
+    if (closedAt > 0 && vote.createdAt !== undefined) {
+      const createdAt = Date.parse(vote.createdAt)
+      if (!Number.isNaN(createdAt) && createdAt > closedAt) continue
+    }
+    counts[vote.data.lineId] += 1
   }
   return counts
+}
+
+/** What the closeTest server action returns (see src/actions/index.ts). */
+export interface CloseResult {
+  summary: string
+  /** False when the results email could not be sent. */
+  emailed: boolean
 }
