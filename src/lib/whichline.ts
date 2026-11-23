@@ -33,6 +33,15 @@ export interface TestData {
 /** What the browser sends when creating a test. The server stamps ownerId. */
 export type NewTest = Omit<TestData, 'ownerId'>
 
+/** What the draftLines server action returns (see src/actions/index.ts). */
+export interface DraftResult {
+  lines: Line[]
+  /** The page title when a URL was read, otherwise ''. */
+  title: string
+  sourceUrl: string
+  sourceText: string
+}
+
 /** One row of the `votes` collection (see src/schemas/votes-schema.ts). */
 export interface VoteData {
   testId: string
@@ -42,7 +51,12 @@ export interface VoteData {
   shownOrder: string
 }
 
+export const MAX_TITLE_LENGTH = 120
+export const MAX_LINE_LENGTH = 200
+export const MAX_AUDIENCE_LENGTH = 80
 export const MAX_REASON_LENGTH = 280
+export const MAX_URL_LENGTH = 500
+export const MAX_SOURCE_TEXT_LENGTH = 4000
 
 // No look-alike characters (l/1, o/0), so a slug is easy to read aloud.
 const ID_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789'

@@ -1,15 +1,30 @@
 /**
- * /new — create a test by typing three lines, then publish it.
+ * /new — create a test.
  *
- * Lives under (protected)/, so only signed-in users reach it. AI drafting of
- * the lines is added later; this page is the manual path.
+ * Two ways to fill the form: let the AI draft three lines from a web address
+ * or a description, or type them by hand. Either way the user can edit every
+ * field before publishing. Lives under (protected)/, so only signed-in users
+ * reach it.
  */
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutations } from 'deepspace'
 import { Button, Input, Textarea } from '@/components/ui'
-import { LINE_IDS, randomId, type Line, type LineId, type NewTest } from '@/lib/whichline'
+import { callAction } from '@/lib/actions'
+import {
+  LINE_IDS,
+  MAX_AUDIENCE_LENGTH,
+  MAX_LINE_LENGTH,
+  MAX_SOURCE_TEXT_LENGTH,
+  MAX_TITLE_LENGTH,
+  MAX_URL_LENGTH,
+  randomId,
+  type DraftResult,
+  type Line,
+  type LineId,
+  type NewTest,
+} from '@/lib/whichline'
 
 type LineDraft = { text: string; audience: string }
 
@@ -23,10 +38,21 @@ export default function NewTestPage() {
   const navigate = useNavigate()
   const { ready, createConfirmed } = useMutations<NewTest>('tests')
 
+  // What the AI drafts from.
+  const [url, setUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [drafting, setDrafting] = useState(false)
+  const [draftError, setDraftError] = useState<string | null>(null)
+  // Kept so the published test records what its lines were drafted from.
+  const [source, setSource] = useState({ url: '', text: '' })
+
+  // The test itself.
   const [title, setTitle] = useState('')
   const [drafts, setDrafts] = useState(emptyDrafts)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const canDraft = url.trim() !== '' || description.trim() !== ''
 
   // All seven fields are required: the title, and a text and an audience for
   // each of the three lines.
@@ -36,6 +62,25 @@ export default function NewTestPage() {
 
   function updateDraft(id: LineId, patch: Partial<LineDraft>) {
     setDrafts((current) => ({ ...current, [id]: { ...current[id], ...patch } }))
+  }
+
+  async function draftWithAi() {
+    setDraftError(null)
+    setDrafting(true)
+    const reply = await callAction<DraftResult>('draftLines', { url, description })
+    setDrafting(false)
+    if (!reply.success) {
+      setDraftError(reply.error)
+      return
+    }
+    const next = { ...emptyDrafts }
+    for (const line of reply.data.lines) {
+      next[line.id] = { text: line.text, audience: line.audience }
+    }
+    setDrafts(next)
+    setSource({ url: reply.data.sourceUrl, text: reply.data.sourceText })
+    // Keep a title the user already typed.
+    if (title.trim() === '' && reply.data.title !== '') setTitle(reply.data.title)
   }
 
   async function publish() {
@@ -53,8 +98,8 @@ export default function NewTestPage() {
       await createConfirmed({
         slug,
         title: title.trim(),
-        sourceUrl: '',
-        sourceText: '',
+        sourceUrl: source.url,
+        sourceText: source.text,
         lines,
         status: 'open',
         visibility: 'public',
@@ -73,9 +118,52 @@ export default function NewTestPage() {
       <div className="mx-auto max-w-2xl px-6 py-12">
         <h1 className="text-2xl font-semibold tracking-tight">New test</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Write three lines that describe the same product for different people. Voters see
-          only the lines, in a random order.
+          Three lines that describe the same product for different people. Voters see only the
+          lines, in a random order.
         </p>
+
+        <section className="mt-8 rounded-lg border border-border bg-card p-4">
+          <h2 className="text-sm font-medium">Start with a draft (optional)</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Paste the product&apos;s web address, describe it, or both. You can edit everything
+            afterwards.
+          </p>
+          <Input
+            aria-label="Product web address"
+            data-testid="draft-url"
+            className="mt-3"
+            type="url"
+            value={url}
+            maxLength={MAX_URL_LENGTH}
+            placeholder="https://example.com"
+            onChange={(event) => setUrl(event.target.value)}
+          />
+          <Textarea
+            aria-label="Product description"
+            data-testid="draft-description"
+            className="mt-3"
+            value={description}
+            maxLength={MAX_SOURCE_TEXT_LENGTH}
+            rows={3}
+            placeholder="What the product does and who it is for"
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          {draftError && (
+            <p role="alert" data-testid="draft-error" className="mt-3 text-sm text-destructive">
+              {draftError}
+            </p>
+          )}
+          <Button
+            className="mt-3"
+            variant="secondary"
+            data-testid="draft-button"
+            disabled={!canDraft}
+            loading={drafting}
+            onClick={draftWithAi}
+          >
+            {drafting ? 'Drafting…' : 'Draft three lines'}
+          </Button>
+        </section>
 
         <div className="mt-8 space-y-2">
           <label htmlFor="test-title" className="text-sm font-medium">
@@ -85,7 +173,7 @@ export default function NewTestPage() {
             id="test-title"
             data-testid="new-test-title"
             value={title}
-            maxLength={120}
+            maxLength={MAX_TITLE_LENGTH}
             placeholder="StudyMate homepage headline"
             onChange={(event) => setTitle(event.target.value)}
           />
@@ -99,16 +187,17 @@ export default function NewTestPage() {
                 aria-label={`Line ${index + 1} text`}
                 data-testid={`new-test-line-${id}`}
                 value={drafts[id].text}
-                maxLength={200}
+                maxLength={MAX_LINE_LENGTH}
                 rows={2}
                 placeholder="One sentence a stranger would understand"
                 onChange={(event) => updateDraft(id, { text: event.target.value })}
               />
               <Input
                 aria-label={`Line ${index + 1} audience`}
+                data-testid={`new-test-audience-${id}`}
                 className="mt-3"
                 value={drafts[id].audience}
-                maxLength={80}
+                maxLength={MAX_AUDIENCE_LENGTH}
                 placeholder="Who is this line for? (hidden from voters until they vote)"
                 onChange={(event) => updateDraft(id, { audience: event.target.value })}
               />
@@ -131,10 +220,13 @@ export default function NewTestPage() {
           >
             Publish and get the link
           </Button>
-          {!complete && (
+          {/* Say why the button is disabled, so a grey button is never a mystery. */}
+          {!complete ? (
             <span className="text-sm text-muted-foreground">
               Fill in the title, all three lines, and who each line is for.
             </span>
+          ) : (
+            !ready && <span className="text-sm text-muted-foreground">Connecting…</span>
           )}
         </div>
       </div>
