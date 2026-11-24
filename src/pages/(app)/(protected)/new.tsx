@@ -116,13 +116,13 @@ export default function NewTestPage() {
   return (
     <div className="min-h-full text-foreground">
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">New test</h1>
+        <h1 className="text-[2.1rem] font-light leading-[1.1] tracking-[-0.02em]">New test</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Three lines that describe the same product for different people. Voters see only the
           lines, in a random order.
         </p>
 
-        <section className="mt-8 rounded-lg border border-border bg-card p-4">
+        <section className="mt-8 rounded-xl border border-border bg-card/70 p-5">
           <h2 className="text-sm font-medium">Start with a draft (optional)</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             Paste the product&apos;s web address, describe it, or both. You can edit everything
@@ -172,6 +172,7 @@ export default function NewTestPage() {
           <Input
             id="test-title"
             data-testid="new-test-title"
+            className="bg-card/70"
             value={title}
             maxLength={MAX_TITLE_LENGTH}
             placeholder="StudyMate homepage headline"
@@ -181,11 +182,12 @@ export default function NewTestPage() {
 
         <div className="mt-8 space-y-6">
           {LINE_IDS.map((id, index) => (
-            <fieldset key={id} className="rounded-lg border border-border bg-card p-4">
+            <fieldset key={id} className="rounded-xl border border-border bg-card/70 p-4">
               <legend className="px-1 text-sm font-medium">Line {index + 1}</legend>
               <Textarea
                 aria-label={`Line ${index + 1} text`}
                 data-testid={`new-test-line-${id}`}
+                className="bg-background/60 text-[15px] md:text-[15px]"
                 value={drafts[id].text}
                 maxLength={MAX_LINE_LENGTH}
                 rows={2}

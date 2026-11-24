@@ -16,7 +16,7 @@ export default function HomePage() {
   return (
     <div className="min-h-full text-foreground">
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Your tests</h1>
+        <h1 className="text-[2.1rem] font-light leading-[1.1] tracking-[-0.02em]">Your tests</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Write three lines for one product, share a link, and see which line people pick.
         </p>
@@ -24,7 +24,7 @@ export default function HomePage() {
         {isSignedIn && userId ? (
           <MyTests userId={userId} />
         ) : (
-          <p className="mt-8 rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground">
+          <p className="mt-8 rounded-xl border border-border bg-card/70 p-6 text-sm text-muted-foreground">
             Sign in (top right) to create a test. Voting on someone else&apos;s test needs no
             sign-in.
           </p>
@@ -64,10 +64,12 @@ function MyTests({ userId }: { userId: string }) {
           <li key={test.recordId}>
             <Link
               to={`/t/${test.data.slug}`}
-              className="flex items-center justify-between rounded-lg border border-border bg-card p-4 hover:border-primary/50"
+              className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card/70 p-4 transition-colors hover:border-primary/60"
             >
-              <span className="min-w-0 truncate">{test.data.title}</span>
-              <Badge variant="secondary">{test.data.status}</Badge>
+              <span className="min-w-0 truncate font-medium">{test.data.title}</span>
+              <Badge variant={test.data.status === 'open' ? 'outline' : 'secondary'}>
+                {test.data.status === 'open' ? 'Open' : 'Closed'}
+              </Badge>
             </Link>
           </li>
         ))}

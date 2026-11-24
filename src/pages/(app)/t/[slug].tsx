@@ -9,9 +9,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth, useMutations, useQuery, type RecordData } from 'deepspace'
-import { Badge, Button, Textarea, cn } from '@/components/ui'
+import { ChoiceDot } from '@/components/ChoiceDot'
+import { TallyMarks } from '@/components/TallyMarks'
+import { Button, Textarea, cn } from '@/components/ui'
 import { callAction } from '@/lib/actions'
-import { describeReading, readResult } from '@/lib/stats'
+import { MIN_VOTES_FOR_TEST, describeReading, readResult } from '@/lib/stats'
 import {
   LINE_IDS,
   MAX_REASON_LENGTH,
@@ -62,8 +64,8 @@ function TestView({ test }: { test: RecordData<TestData> }) {
   return (
     <div className="min-h-full text-foreground">
       <div className="mx-auto max-w-2xl px-6 py-12">
-        <p className="text-sm text-muted-foreground">{test.data.title}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+        <p className="text-[13px] text-muted-foreground">{test.data.title}</p>
+        <h1 className="mt-2 text-[2.1rem] font-light leading-[1.1] tracking-[-0.02em]">
           Which line makes it clearest what this product is?
         </h1>
 
@@ -129,13 +131,15 @@ function Ballot({ test, onVoted }: { test: RecordData<TestData>; onVoted: () => 
             data-testid={`ballot-option-${id}`}
             onClick={() => setChoice(id)}
             className={cn(
-              'w-full rounded-lg border p-4 text-left text-base transition-colors',
+              'flex w-full cursor-pointer items-start gap-3 rounded-xl border bg-card/70 px-5 py-5 text-left transition-colors',
+              'focus-visible:border-primary focus-visible:outline-none',
               choice === id
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-card hover:border-primary/50',
+                ? 'border-primary shadow-[0_0_0_4px_rgba(167,139,250,0.08)]'
+                : 'border-border hover:border-primary/50',
             )}
           >
-            {textOf(id)}
+            <ChoiceDot chosen={choice === id} className="mt-1" />
+            <span className="text-[17px] leading-relaxed">{textOf(id)}</span>
           </button>
         ))}
       </div>
@@ -147,12 +151,13 @@ function Ballot({ test, onVoted }: { test: RecordData<TestData>; onVoted: () => 
         <Textarea
           id="vote-reason"
           data-testid="ballot-reason"
+          className="rounded-xl bg-card/70"
           value={reason}
           maxLength={MAX_REASON_LENGTH}
           rows={2}
           onChange={(event) => setReason(event.target.value)}
         />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Your reason is shown publicly with the results. No sign-in needed.
         </p>
       </div>
@@ -163,15 +168,17 @@ function Ballot({ test, onVoted }: { test: RecordData<TestData>; onVoted: () => 
         </p>
       )}
 
-      <Button
-        className="mt-6"
-        data-testid="ballot-submit"
-        disabled={!ready || !choice}
-        loading={sending}
-        onClick={submit}
-      >
-        Submit my vote
-      </Button>
+      <div className="mt-6 flex items-center gap-3">
+        <Button
+          data-testid="ballot-submit"
+          disabled={!ready || !choice}
+          loading={sending}
+          onClick={submit}
+        >
+          Submit my vote
+        </Button>
+        {!choice && <span className="text-sm text-muted-foreground">Pick one line first.</span>}
+      </div>
     </div>
   )
 }
@@ -184,6 +191,8 @@ function Results({ test }: { test: RecordData<TestData> }) {
   const counts = tally(records, test.data.closedAt)
   const reading = readResult(counts)
   const total = reading.total
+  // Hand tally while the count is too small to test; bars once it is not.
+  const byHand = total < MIN_VOTES_FOR_TEST
   const voterKey = useMemo(() => getVoterKey(), [])
   const mine = records.find((vote) => vote.data.voterKey === voterKey)?.data.lineId
   const reasons = records.filter((vote) => vote.data.reason.trim() !== '')
@@ -191,8 +200,9 @@ function Results({ test }: { test: RecordData<TestData> }) {
   return (
     <div className="mt-8" data-testid="results">
       <p className="text-sm text-muted-foreground" data-testid="results-total">
-        {status === 'loading' ? 'Loading votes…' : `${total} ${total === 1 ? 'vote' : 'votes'}`}
-        {closed ? ' · This test is closed.' : ' so far'}
+        {status === 'loading'
+          ? 'Loading votes…'
+          : `${total} ${total === 1 ? 'vote' : 'votes'}${closed ? '. This test is closed.' : ' so far.'}`}
       </p>
 
       <ul className="mt-4 space-y-3">
@@ -200,63 +210,102 @@ function Results({ test }: { test: RecordData<TestData> }) {
           const line = test.data.lines.find((candidate) => candidate.id === id)
           const count = counts[id]
           const share = total === 0 ? 0 : Math.round((count / total) * 100)
+          const leads = total > 0 && reading.leaders.includes(id)
           return (
             <li
               key={id}
               data-testid={`results-line-${id}`}
-              className="rounded-lg border border-border bg-card p-4"
-            >
-              <p className="text-base">{line?.text}</p>
-              {line?.audience && (
-                <p className="mt-1 text-xs text-muted-foreground">Written for: {line.audience}</p>
+              className={cn(
+                'rounded-xl border bg-card/70 px-5 py-5',
+                mine === id ? 'border-primary/60' : 'border-border',
               )}
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-primary transition-all" style={{ width: `${share}%` }} />
+            >
+              <div className="flex items-start gap-3">
+                <ChoiceDot chosen={mine === id} className="mt-1" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[17px] leading-relaxed">{line?.text}</p>
+                  {line?.audience && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Written for {line.audience}
+                    </p>
+                  )}
+                </div>
+                <p className="shrink-0 text-right">
+                  <span className="block text-3xl font-light tabular-nums leading-none">
+                    {count}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {count === 1 ? 'vote' : 'votes'}, {share}%
+                  </span>
+                </p>
               </div>
-              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  {count} {count === 1 ? 'vote' : 'votes'} · {share}%
-                </span>
-                {total > 0 && reading.leaders.includes(id) && (
+
+              {/* With a hand tally, a line with no votes has nothing to draw. */}
+              <div
+                className={cn(
+                  'mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 pl-[30px]',
+                  byHand && count === 0 && 'hidden',
+                )}
+              >
+                {byHand ? (
+                  <span className="text-primary">
+                    <TallyMarks count={count} />
+                  </span>
+                ) : (
+                  <div className="h-2 min-w-40 flex-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#a78bfa] to-[#6e86ff]"
+                      style={{ width: `${share}%` }}
+                    />
+                  </div>
+                )}
+                {leads && (
                   // Two or three lines can share the lead; say so instead of
                   // labelling each of them "Most votes".
-                  <Badge variant="outline">
+                  <span className="rounded-full border border-border bg-background/60 px-2.5 py-0.5 text-xs text-muted-foreground">
                     {reading.leaders.length === 1 ? 'Most votes' : 'Tied for most'}
-                  </Badge>
+                  </span>
                 )}
-                {mine === id && <Badge variant="secondary">Your pick</Badge>}
-              </p>
+                {mine === id && (
+                  <span className="rounded-full border border-primary/50 px-2.5 py-0.5 text-xs text-stamp">
+                    Your pick
+                  </span>
+                )}
+              </div>
             </li>
           )
         })}
       </ul>
 
-      <div className="mt-6 rounded-lg border border-border bg-card p-4" data-testid="results-reading">
-        <h2 className="text-sm font-medium">How to read this</h2>
-        <p className="mt-1 text-sm">{describeReading(reading)}</p>
-        <p className="mt-2 text-xs text-muted-foreground">
+      <div className="mt-6 rounded-xl border border-border bg-card/70 p-5" data-testid="results-reading">
+        <h2 className="text-sm font-semibold">How to read this</h2>
+        <p className="mt-1 text-[15px]">{describeReading(reading)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
           This is a small-sample check, not an A/B test. The people who voted are the people who
           got the link.
         </p>
       </div>
 
       {closed && test.data.summary !== '' && (
-        <div className="mt-6 rounded-lg border border-border bg-card p-4" data-testid="results-summary">
-          <h2 className="text-sm font-medium">What voters said (AI summary)</h2>
-          <p className="mt-1 text-sm">{test.data.summary}</p>
+        <div className="mt-6 rounded-xl border border-border bg-card/70 p-5" data-testid="results-summary">
+          <h2 className="text-sm font-semibold">What voters said</h2>
+          <p className="mt-1 text-[15px] leading-relaxed">{test.data.summary}</p>
+          <p className="mt-2 text-sm text-muted-foreground">Summarized by AI from the reasons below.</p>
         </div>
       )}
 
       {reasons.length > 0 && (
-        <div className="mt-6" data-testid="results-reasons">
-          <h2 className="text-sm font-medium">Reasons ({reasons.length})</h2>
-          <ul className="mt-2 space-y-2">
+        <div className="mt-8" data-testid="results-reasons">
+          <h2 className="text-sm font-semibold">
+            {reasons.length} {reasons.length === 1 ? 'reason' : 'reasons'}, in the voters&apos; words
+          </h2>
+          <ul className="mt-3 space-y-3">
             {reasons.slice(0, 50).map((vote) => (
-              <li key={vote.recordId} className="rounded-md bg-muted px-3 py-2 text-sm">
-                <span className="text-xs text-muted-foreground">
-                  Line {LINE_IDS.indexOf(vote.data.lineId) + 1}:{' '}
-                </span>
-                {vote.data.reason}
+              <li key={vote.recordId} className="border-l-2 border-primary/50 pl-3">
+                <p className="text-[15px]">{vote.data.reason}</p>
+                <p className="text-sm text-muted-foreground">
+                  Picked line {LINE_IDS.indexOf(vote.data.lineId) + 1}
+                </p>
               </li>
             ))}
           </ul>
@@ -303,14 +352,16 @@ function OwnerPanel({ test }: { test: RecordData<TestData> }) {
   }
 
   return (
-    <div className="mt-6 rounded-lg border border-border bg-card p-4" data-testid="owner-panel">
-      <p className="text-sm font-medium">
-        {closed ? 'This is your test. It is closed.' : 'This is your test. Share this link to collect votes:'}
+    <div className="mt-6 rounded-xl border border-border bg-card/70 p-5" data-testid="owner-panel">
+      <p className="text-sm font-semibold">
+        {closed ? 'This is your test. It is closed.' : 'This is your test. Share this link to collect votes.'}
       </p>
       <div className="mt-2 flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 text-sm">{link}</code>
-        <Button variant="secondary" size="sm" onClick={copy}>
-          {copied ? 'Copied' : 'Copy'}
+        <span className="min-w-0 flex-1 truncate rounded-lg border border-border bg-background/60 px-3 py-2 font-mono text-[13px] text-muted-foreground">
+          {link}
+        </span>
+        <Button variant="outline" size="sm" onClick={copy}>
+          {copied ? 'Copied' : 'Copy link'}
         </Button>
       </div>
 
@@ -327,7 +378,7 @@ function OwnerPanel({ test }: { test: RecordData<TestData> }) {
       )}
 
       {!closed && confirming && (
-        <div className="mt-4 rounded-md border border-border p-3">
+        <div className="mt-4 rounded-lg border border-border bg-background/60 p-4">
           <p className="text-sm">
             Closing stops the count and cannot be undone. The reasons are summarized by AI and the
             results are emailed to your sign-in address.
@@ -342,7 +393,7 @@ function OwnerPanel({ test }: { test: RecordData<TestData> }) {
               disabled={closing}
               onClick={() => setConfirming(false)}
             >
-              Cancel
+              Keep it open
             </Button>
           </div>
         </div>
@@ -367,7 +418,7 @@ function PageMessage({ title, detail }: { title: string; detail?: string }) {
     <div className="flex min-h-full flex-col items-center justify-center gap-2 px-6 py-20 text-center text-foreground">
       <h1 className="text-xl font-semibold">{title}</h1>
       {detail && <p className="max-w-md text-sm text-muted-foreground">{detail}</p>}
-      <Link to="/home" className="mt-4 text-sm text-muted-foreground underline underline-offset-4">
+      <Link to="/" className="mt-4 text-sm underline underline-offset-4">
         Back to whichline
       </Link>
     </div>

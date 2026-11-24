@@ -8,12 +8,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90',
+        // Violet with a soft glow underneath: the DeepSpace primary action.
+        default:
+          'bg-primary text-primary-foreground font-semibold shadow-[0_8px_24px_-10px_rgba(167,139,250,0.5)] hover:bg-primary/90',
         destructive:
           'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:ring-destructive/20',
-        outline:
-          'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
+        // Translucent white with a thin edge: the DeepSpace secondary action.
+        outline: 'border border-white/20 bg-white/10 text-foreground hover:bg-white/15',
+        secondary: 'border border-white/20 bg-white/10 text-foreground hover:bg-white/15',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },

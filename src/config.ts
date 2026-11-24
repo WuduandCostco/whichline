@@ -43,3 +43,12 @@ export const DAILY_LIMITS = {
 } as const
 
 export type MeteredAction = keyof typeof DAILY_LIMITS
+
+/**
+ * The always-open demo test linked from the landing page. It asks about
+ * whichline's own positioning lines. The slug exists in production only; on a
+ * local dev server the link shows "Test not found".
+ */
+export const DEMO_TEST_SLUG = 'g34b4yhd'
+
+export const SOURCE_URL = 'https://github.com/WuduandCostco/whichline'

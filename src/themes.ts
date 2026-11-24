@@ -18,14 +18,14 @@
 
 export const THEMES = [
   {
-    id: 'slate',
-    label: 'Slate',
-    description: 'Neutral dark placeholder default. Replace with your own theme.',
+    id: 'whichline',
+    label: 'whichline',
+    description: 'Follows the DeepSpace house style: near-black, light headings, one violet accent.',
   },
   {
-    id: 'paper',
-    label: 'Paper',
-    description: 'Light example theme showing the token contract. Replace or delete.',
+    id: 'slate',
+    label: 'Slate',
+    description: 'The scaffold default, still defined in styles.css. Not used.',
   },
 ] as const
 
@@ -33,9 +33,9 @@ export type ThemeId = (typeof THEMES)[number]['id']
 
 /** Read the currently active theme id from <html data-theme>. */
 export function getActiveTheme(): ThemeId {
-  if (typeof document === 'undefined') return 'slate'
+  if (typeof document === 'undefined') return 'whichline'
   const id = document.documentElement.getAttribute('data-theme') as ThemeId | null
-  return id ?? 'slate'
+  return id ?? 'whichline'
 }
 
 /** Look up a theme entry by id, or fall back to the first theme. */

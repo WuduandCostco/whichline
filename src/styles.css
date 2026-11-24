@@ -39,6 +39,9 @@
   --color-ring: #818cf8;
   --radius: 0.5rem;
 
+  /* The colour of "your pick". Themes override it; see themes.css. */
+  --color-stamp: #8ea0ff;
+
   /*
    * Map the rounded-* utilities onto --radius so a theme (or you) can change
    * the app's shape language in one place. At the default 0.5rem these equal
@@ -146,6 +149,46 @@
 @utility slide-out-to-left-2 { --tw-exit-translate-x: -0.5rem; }
 @utility slide-out-to-right-2 { --tw-exit-translate-x: 0.5rem; }
 
+
+/*
+ * whichline follows the DeepSpace house style: near-black, light-weight
+ * headings, and one violet accent. These two utilities carry the parts of it
+ * that are not plain theme tokens.
+ */
+
+/* Violet-to-blue text for the one phrase in a heading that matters most. */
+@utility text-accent-gradient {
+  background-image: linear-gradient(90deg, #a78bfa 0%, #6e86ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* A faint violet glow at the top of the page, over the theme background. */
+@utility bg-space {
+  /* Two soft glows at the top, then six sparse layers of tiny dots. Each dot
+     layer repeats on a different tile size, so the stars never line up into
+     a visible grid. Static on purpose: no animation, nothing to distract. */
+  background-image:
+    radial-gradient(52rem 28rem at 12% -8%, rgba(124, 92, 255, 0.16), transparent 62%),
+    radial-gradient(40rem 24rem at 100% 0%, rgba(110, 134, 255, 0.07), transparent 60%),
+    radial-gradient(circle at 24px 36px, rgba(255, 255, 255, 0.5) 0 0.9px, transparent 1.5px),
+    radial-gradient(circle at 120px 88px, rgba(255, 255, 255, 0.35) 0 0.9px, transparent 1.5px),
+    radial-gradient(circle at 60px 190px, rgba(255, 255, 255, 0.45) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 250px 40px, rgba(255, 255, 255, 0.3) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 180px 300px, rgba(255, 255, 255, 0.7) 0 1.25px, transparent 2px),
+    radial-gradient(circle at 330px 140px, rgba(167, 139, 250, 0.75) 0 1px, transparent 1.8px);
+  background-size:
+    auto,
+    auto,
+    173px 229px,
+    211px 197px,
+    257px 283px,
+    313px 241px,
+    389px 431px,
+    461px 379px;
+  background-repeat: no-repeat, no-repeat, repeat, repeat, repeat, repeat, repeat, repeat;
+}
 
 /*
  * Custom base styles — must be in @layer base so utility classes can override.
