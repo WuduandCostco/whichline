@@ -132,17 +132,28 @@ export const actions: Record<string, ActionHandler<Env>> = {
 
     let pageText = ''
     let pageTitle = ''
+    let pageRead = false
     if (url !== null) {
       const page = await tools.integration<ScrapeResponse>('firecrawl/scrape', {
         url,
         formats: ['markdown'],
         onlyMainContent: true,
       })
-      if (!page.success) {
-        return fail(`Could not read that page (${page.error}). You can paste a description instead.`)
+      if (page.success) {
+        pageText = asText(page.data.data?.markdown)
+        pageTitle = asText(page.data.data?.metadata?.title)
+        pageRead = true
+      } else {
+        // The provider's own error text goes to the logs only. It can be long
+        // and technical, and it is not written for the person using the form.
+        console.warn('[draftLines] scrape failed:', page.error)
+        if (description.length < MIN_SOURCE_CHARS) {
+          return fail(
+            `Could not read that page. Describe the product in at least ${MIN_SOURCE_CHARS} characters instead, then try again.`,
+          )
+        }
+        // Otherwise carry on with the description alone.
       }
-      pageText = asText(page.data.data?.markdown)
-      pageTitle = asText(page.data.data?.metadata?.title)
     }
 
     const source = [description, pageText]
@@ -159,7 +170,10 @@ export const actions: Record<string, ActionHandler<Env>> = {
       system: DRAFT_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildDraftPrompt(source) }],
     })
-    if (!reply.success) return fail(`The AI call failed (${reply.error}). Please try again.`)
+    if (!reply.success) {
+      console.warn('[draftLines] AI call failed:', reply.error)
+      return fail('The AI could not draft the lines just now. Please try again.')
+    }
 
     // Token counts and cost only, never the page text or the reply: enough to
     // see in the logs what a draft really costs.
@@ -182,8 +196,13 @@ export const actions: Record<string, ActionHandler<Env>> = {
     const result: DraftResult = {
       lines,
       title: pageTitle.trim().slice(0, MAX_TITLE_LENGTH),
-      sourceUrl: url ?? '',
+      // Only record the address when the page was really read.
+      sourceUrl: pageRead && url !== null ? url : '',
       sourceText: source.slice(0, MAX_SOURCE_TEXT_LENGTH),
+      notice:
+        url !== null && !pageRead
+          ? 'Could not read that page, so these lines come from your description only.'
+          : '',
     }
     return { success: true, data: result }
   },

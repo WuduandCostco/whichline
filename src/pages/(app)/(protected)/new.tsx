@@ -43,6 +43,7 @@ export default function NewTestPage() {
   const [description, setDescription] = useState('')
   const [drafting, setDrafting] = useState(false)
   const [draftError, setDraftError] = useState<string | null>(null)
+  const [draftNotice, setDraftNotice] = useState('')
   // Kept so the published test records what its lines were drafted from.
   const [source, setSource] = useState({ url: '', text: '' })
 
@@ -66,6 +67,7 @@ export default function NewTestPage() {
 
   async function draftWithAi() {
     setDraftError(null)
+    setDraftNotice('')
     setDrafting(true)
     const reply = await callAction<DraftResult>('draftLines', { url, description })
     setDrafting(false)
@@ -79,6 +81,7 @@ export default function NewTestPage() {
     }
     setDrafts(next)
     setSource({ url: reply.data.sourceUrl, text: reply.data.sourceText })
+    setDraftNotice(reply.data.notice)
     // Keep a title the user already typed.
     if (title.trim() === '' && reply.data.title !== '') setTitle(reply.data.title)
   }
@@ -151,6 +154,11 @@ export default function NewTestPage() {
           {draftError && (
             <p role="alert" data-testid="draft-error" className="mt-3 text-sm text-destructive">
               {draftError}
+            </p>
+          )}
+          {draftNotice !== '' && (
+            <p role="status" data-testid="draft-notice" className="mt-3 text-sm text-muted-foreground">
+              {draftNotice}
             </p>
           )}
           <Button

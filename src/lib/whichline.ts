@@ -40,6 +40,8 @@ export interface DraftResult {
   title: string
   sourceUrl: string
   sourceText: string
+  /** Something the user should know about this draft, otherwise ''. */
+  notice: string
 }
 
 /** One row of the `votes` collection (see src/schemas/votes-schema.ts). */

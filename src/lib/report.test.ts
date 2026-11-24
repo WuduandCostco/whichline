@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildReportEmail, buildSummaryPrompt, cleanSummary } from './report'
+import { SUMMARY_SYSTEM_PROMPT, buildReportEmail, buildSummaryPrompt, cleanSummary } from './report'
 import type { Line } from './whichline'
 
 const lines: Line[] = [
@@ -7,6 +7,13 @@ const lines: Line[] = [
   { id: 'b', text: 'See which topics you are weak on.', audience: 'Pre-med students' },
   { id: 'c', text: 'Get a study plan from your own notes.', audience: 'Note takers' },
 ]
+
+describe('SUMMARY_SYSTEM_PROMPT', () => {
+  it('tells the model not to name a winner', () => {
+    expect(SUMMARY_SYSTEM_PROMPT).toContain('Never say that a line won')
+    expect(SUMMARY_SYSTEM_PROMPT).toContain('the most chosen line')
+  })
+})
 
 describe('buildSummaryPrompt', () => {
   it('returns null when nobody wrote a reason, so no AI call is made', () => {
