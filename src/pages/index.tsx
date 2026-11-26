@@ -24,8 +24,8 @@ const DEMO_LINES = [
 
 const STEPS = [
   {
-    title: "Paste your product's link",
-    body: 'AI reads the page and drafts three one-line descriptions, each written for a different kind of person. Edit them however you like.',
+    title: 'Describe your product, or paste its link',
+    body: 'AI drafts three one-line descriptions from your description or from the page, each written for a different kind of person. Edit them however you like.',
   },
   {
     title: 'Share one link',

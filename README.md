@@ -94,11 +94,16 @@ Rough cost: a draft is about 0.6 credit, closing a test about 1.4 credits
   browser gives a second vote.
 - Reading a web address depends on the platform's scrape integration. When it
   cannot read the page, the app drafts from your description instead and says
-  so. With no description, it asks for one.
+  so. With no description, it asks for one. From November 23 to at least
+  November 25, 2026 that integration answered every call with an out-of-credits
+  error from its provider, so during that time drafting needed a description.
 - The AI summary is instructed not to name a winner, but that is an
   instruction to a model, not a guarantee.
 - A test with more than 2,000 votes is summarized from its first 2,000.
-- Closing a test cannot be undone.
+- Closing a test cannot be undone from the page. But owners may update their
+  own rows, so a test's owner could change their own test record directly, for
+  example reopen it or reword a line after votes came in. Nobody else can. I
+  read this from the permission rules and have not tested it.
 - English only.
 
 ## Run it locally
